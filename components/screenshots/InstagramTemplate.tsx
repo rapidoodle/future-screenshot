@@ -18,7 +18,7 @@ export default function InstagramTemplate({ content }: Props) {
     },
     {
       from: 'them',
-      text: title || 'We made it. Everything you're working towards right now? It happens.',
+      text: title || "We made it. Everything you're working towards right now? It happens.",
       time: '11:42 PM',
     },
     {
