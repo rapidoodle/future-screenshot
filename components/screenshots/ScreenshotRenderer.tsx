@@ -3,6 +3,7 @@
 import type { GeneratedContent, ScreenshotTemplate } from '@/lib/types'
 import BankTemplate from './BankTemplate'
 import RaceTemplate from './RaceTemplate'
+import HealthTemplate from './HealthTemplate'
 import SocialTemplate from './SocialTemplate'
 import CalendarTemplate from './CalendarTemplate'
 import ChatTemplate from './ChatTemplate'
@@ -22,6 +23,8 @@ export default function ScreenshotRenderer({ content, template }: Props) {
       return <BankTemplate content={content} />
     case 'race':
       return <RaceTemplate content={content} />
+    case 'health':
+      return <HealthTemplate content={content} />
     case 'social':
       return <SocialTemplate content={content} />
     case 'calendar':

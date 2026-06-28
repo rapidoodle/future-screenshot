@@ -24,6 +24,7 @@ export type Tone =
 export type ScreenshotTemplate =
   | 'bank'
   | 'race'
+  | 'health'
   | 'social'
   | 'calendar'
   | 'chat'
@@ -63,13 +64,19 @@ export interface Generation {
   created_at: string
 }
 
-// Map category -> template
+// Default fallback map (API will override with smarter goal-based selection)
 export const CATEGORY_TEMPLATE_MAP: Record<Category, ScreenshotTemplate> = {
   Money: 'bank',
-  Fitness: 'race',
+  Fitness: 'health', // default to health; API upgrades to 'race' for running goals
   Creator: 'social',
   Career: 'email',
   Business: 'certificate',
   Relationship: 'chat',
   Custom: 'calendar',
 }
+
+// Keywords that indicate a running/race goal
+export const RACE_KEYWORDS = [
+  'marathon', 'run', 'race', '5k', '10k', 'triathlon',
+  'sprint', 'cycling', 'swim', 'ironman', 'half marathon',
+]

@@ -7,7 +7,7 @@ import type {
   Category,
   ScreenshotTemplate,
 } from '@/lib/types'
-import { CATEGORY_TEMPLATE_MAP } from '@/lib/types'
+import { CATEGORY_TEMPLATE_MAP, RACE_KEYWORDS } from '@/lib/types'
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
 
@@ -25,7 +25,18 @@ function buildPrompt(req: GenerationRequest, todayStr: string): string {
     Motivational: 'deeply inspiring, emotional, goosebump-inducing',
   }
 
-  return `You are generating content for a fun, fictional "Future Screenshot" app.
+  // Build metric examples based on the actual goal to avoid generic outputs
+  const metricExamples: Record<string, string> = {
+    Money: '"primary_label": "Balance", "primary_value": "₱2,450,000", "secondary_label": "Monthly Income", "secondary_value": "₱85,000", "tertiary_label": "Savings Rate", "tertiary_value": "42%"',
+    Fitness: '"primary_label": "Weight", "primary_value": "58 kg", "secondary_label": "Body Fat", "secondary_value": "18%", "tertiary_label": "Workouts Done", "tertiary_value": "312"',
+    Career: '"primary_label": "Salary", "primary_value": "₱120,000/mo", "secondary_label": "Position", "secondary_value": "Senior Manager", "tertiary_label": "Years Experience", "tertiary_value": "5 yrs"',
+    Business: '"primary_label": "Monthly Revenue", "primary_value": "₱850,000", "secondary_label": "Profit Margin", "secondary_value": "38%", "tertiary_label": "Clients", "tertiary_value": "47"',
+    Creator: '"primary_label": "Followers", "primary_value": "1.2M", "secondary_label": "Avg Views", "secondary_value": "485K", "tertiary_label": "Monthly Earnings", "tertiary_value": "₱95,000"',
+    Relationship: '"primary_label": "Milestone", "primary_value": "2 Years Together", "secondary_label": "Date Nights", "secondary_value": "104", "tertiary_label": "Happiness Score", "tertiary_value": "10/10"',
+    Custom: '"primary_label": "Goal", "primary_value": "100% Complete", "secondary_label": "Time Taken", "secondary_value": "${timeframe}", "tertiary_label": "Milestones Hit", "tertiary_value": "All"',
+  }
+
+  return `You are generating content for a fun, fictional "Future Screenshot" app for users in the Philippines.
 The user set a goal and you generate fake-but-motivating data as if it came true.
 
 TODAY'S DATE: ${todayStr}
@@ -35,31 +46,33 @@ TIMEFRAME: ${timeframe} from now
 TONE: ${toneGuides[tone] || tone}
 ${situationText}
 
+IMPORTANT RULES FOR METRICS:
+- All money values MUST use Philippine Peso (₱) — never use $ or USD
+- Metrics must make sense for the SPECIFIC GOAL, not generic placeholders
+- For fitness goals like Pilates, yoga, weight loss: use weight (kg), body fat %, classes attended — NOT marathon split times or race distances
+- For running/race goals: use finish time, pace (min/km), placement
+- Example metrics for ${category}: { ${metricExamples[category] || metricExamples.Custom} }
+
 Generate a JSON response with these exact fields:
 {
   "title": "Short punchy achievement headline (max 8 words)",
-  "description": "2-3 sentence vivid description of what happened (${tone} tone)",
+  "description": "2-3 sentence vivid description of what happened (${tone} tone), relevant to the specific goal",
   "metrics": {
-    "primary_label": "Main metric name (e.g., 'Balance', 'Subscribers', 'Finish Time')",
-    "primary_value": "The impressive number or result (e.g., '$127,450', '2.1M', '3:42:15')",
-    "secondary_label": "Second metric name",
+    "primary_label": "Main metric name relevant to THIS specific goal",
+    "primary_value": "The impressive result — use ₱ for money, kg for weight, etc.",
+    "secondary_label": "Second metric relevant to THIS goal",
     "secondary_value": "Second metric value",
-    "tertiary_label": "Third metric name",
+    "tertiary_label": "Third metric relevant to THIS goal",
     "tertiary_value": "Third metric value"
   },
-  "futureDate": "A specific date exactly ${timeframe} from ${todayStr} (formatted as Month DD, YYYY) — must be in the future relative to ${todayStr}",
-  "caption": "Funny or motivational 1-liner caption to share with friends (${tone} tone)",
-  "shareText": "Tweet-length share text with the caption and hashtags",
-  "appName": "Fictional app name that would show this data (e.g., 'CashFlow Bank', 'Strava', 'YouTube Studio')",
-  "senderName": "If it's a chat/email, the sender's name (e.g., 'Future You', a celebrity name if funny tone)"
+  "futureDate": "A specific date exactly ${timeframe} from ${todayStr} (formatted as Month DD, YYYY)",
+  "caption": "Funny or motivational 1-liner caption (${tone} tone)",
+  "shareText": "Tweet-length share text with caption and hashtags",
+  "appName": "Fictional Filipino app name relevant to the goal (e.g., 'PesoPal', 'FitPinas', 'KitaKita Bank')",
+  "senderName": "If chat/email: sender name (e.g., 'Future Mo', 'Future You')"
 }
 
-Rules:
-- Keep it CLEARLY FICTIONAL — no real financial advice
-- Numbers should be impressive but feel earned for the timeframe
-- ${tone === 'Funny' ? 'Include at least one absurd joke element' : 'Keep it inspiring'}
-- The data should match the category: ${category}
-- Only return valid JSON, nothing else`
+Only return valid JSON, nothing else.`
 }
 
 export async function POST(req: NextRequest) {
@@ -107,8 +120,13 @@ export async function POST(req: NextRequest) {
 
     const aiData = JSON.parse(raw)
 
-    const template: ScreenshotTemplate =
-      CATEGORY_TEMPLATE_MAP[category as Category] || 'certificate'
+    // Smart template selection: for Fitness, pick race only if goal mentions running
+    let template: ScreenshotTemplate = CATEGORY_TEMPLATE_MAP[category as Category] || 'certificate'
+    if (category === 'Fitness') {
+      const goalLower = goal.toLowerCase()
+      const isRace = RACE_KEYWORDS.some((kw) => goalLower.includes(kw))
+      template = isRace ? 'race' : 'health'
+    }
 
     const generatedContent: GeneratedContent = {
       title: aiData.title || 'Goal Achieved!',
