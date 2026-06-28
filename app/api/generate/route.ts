@@ -69,7 +69,8 @@ Generate a JSON response with these exact fields:
   "caption": "Funny or motivational 1-liner caption (${tone} tone)",
   "shareText": "Tweet-length share text with caption and hashtags",
   "appName": "Fictional Filipino app name relevant to the goal (e.g., 'PesoPal', 'FitPinas', 'KitaKita Bank')",
-  "senderName": "If chat/email: sender name (e.g., 'Future Mo', 'Future You')"
+  "senderName": "If chat/email/DM: sender name (e.g., 'future_mo', 'Future You')",
+  "narration": "A dramatic 1-2 sentence narrator voice-over. Should feel like a movie trailer or story. Examples: 'You almost quit in 2027. Good thing you didn't.' or 'This almost never happened. But you chose to keep going.' or 'Everyone said it was impossible. You wrote a different ending.' Make it emotional and personal to the goal."
 }
 
 Only return valid JSON, nothing else.`
@@ -111,7 +112,7 @@ export async function POST(req: NextRequest) {
         },
       ],
       temperature: 0.9,
-      max_tokens: 600,
+      max_tokens: 700,
       response_format: { type: 'json_object' },
     })
 
@@ -120,12 +121,16 @@ export async function POST(req: NextRequest) {
 
     const aiData = JSON.parse(raw)
 
-    // Smart template selection: for Fitness, pick race only if goal mentions running
+    // Smart template selection based on goal keywords
     let template: ScreenshotTemplate = CATEGORY_TEMPLATE_MAP[category as Category] || 'certificate'
+    const goalLower = goal.toLowerCase()
+
     if (category === 'Fitness') {
-      const goalLower = goal.toLowerCase()
       const isRace = RACE_KEYWORDS.some((kw) => goalLower.includes(kw))
       template = isRace ? 'race' : 'health'
+    } else if (category === 'Creator') {
+      const isYoutube = ['youtube', 'video', 'vlog', 'channel'].some((kw) => goalLower.includes(kw))
+      template = isYoutube ? 'social' : 'spotify'
     }
 
     const generatedContent: GeneratedContent = {
@@ -136,6 +141,7 @@ export async function POST(req: NextRequest) {
       caption: aiData.caption || '',
       shareText: aiData.shareText || '',
       template,
+      narration: aiData.narration,
       appName: aiData.appName,
       senderName: aiData.senderName,
     }

@@ -23,9 +23,14 @@ export type Tone =
 
 export type ScreenshotTemplate =
   | 'bank'
+  | 'apple-wallet'
   | 'race'
   | 'health'
   | 'social'
+  | 'spotify'
+  | 'linkedin'
+  | 'gmail'
+  | 'instagram'
   | 'calendar'
   | 'chat'
   | 'email'
@@ -47,6 +52,7 @@ export interface GeneratedContent {
   caption: string
   shareText: string
   template: ScreenshotTemplate
+  narration?: string   // dramatic one-liner narrator text
   appName?: string
   senderName?: string
   achievementName?: string
@@ -66,12 +72,12 @@ export interface Generation {
 
 // Default fallback map (API will override with smarter goal-based selection)
 export const CATEGORY_TEMPLATE_MAP: Record<Category, ScreenshotTemplate> = {
-  Money: 'bank',
-  Fitness: 'health', // default to health; API upgrades to 'race' for running goals
-  Creator: 'social',
-  Career: 'email',
-  Business: 'certificate',
-  Relationship: 'chat',
+  Money: 'apple-wallet',
+  Fitness: 'health',       // API upgrades to 'race' for running goals
+  Creator: 'spotify',      // API upgrades to 'social' for YouTube goals
+  Career: 'linkedin',
+  Business: 'gmail',
+  Relationship: 'instagram',
   Custom: 'calendar',
 }
 

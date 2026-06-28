@@ -187,6 +187,20 @@ export default function ResultPage() {
 
       <div className="pt-28 pb-16 px-4">
         <div className="max-w-2xl mx-auto">
+          {/* Narration — dramatic movie-trailer voice */}
+          {content.narration && (
+            <div className="text-center mb-8 animate-slide-up">
+              <div className="relative inline-block">
+                <div className="absolute -inset-1 bg-gradient-to-r from-sky-500 via-violet-500 to-purple-600 rounded-2xl blur opacity-20" />
+                <div className="relative bg-gradient-to-br from-gray-900 to-gray-800 rounded-2xl px-6 py-5 max-w-lg mx-auto">
+                  <p className="text-white text-lg sm:text-xl font-bold leading-relaxed italic">
+                    &ldquo;{content.narration}&rdquo;
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Header */}
           <div className="text-center mb-8 animate-slide-up">
             <div className="inline-flex items-center gap-2 bg-emerald-50 border border-emerald-200 text-emerald-700 text-sm font-semibold px-4 py-2 rounded-full mb-4">
