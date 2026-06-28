@@ -11,7 +11,7 @@ import { CATEGORY_TEMPLATE_MAP } from '@/lib/types'
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
 
-function buildPrompt(req: GenerationRequest): string {
+function buildPrompt(req: GenerationRequest, todayStr: string): string {
   const { goal, category, timeframe, tone, currentSituation } = req
   const situationText = currentSituation
     ? `Their current situation: ${currentSituation}.`
@@ -28,6 +28,7 @@ function buildPrompt(req: GenerationRequest): string {
   return `You are generating content for a fun, fictional "Future Screenshot" app.
 The user set a goal and you generate fake-but-motivating data as if it came true.
 
+TODAY'S DATE: ${todayStr}
 GOAL: "${goal}"
 CATEGORY: ${category}
 TIMEFRAME: ${timeframe} from now
@@ -46,7 +47,7 @@ Generate a JSON response with these exact fields:
     "tertiary_label": "Third metric name",
     "tertiary_value": "Third metric value"
   },
-  "futureDate": "A specific date ${timeframe} from today (formatted as Month DD, YYYY)",
+  "futureDate": "A specific date exactly ${timeframe} from ${todayStr} (formatted as Month DD, YYYY) — must be in the future relative to ${todayStr}",
   "caption": "Funny or motivational 1-liner caption to share with friends (${tone} tone)",
   "shareText": "Tweet-length share text with the caption and hashtags",
   "appName": "Fictional app name that would show this data (e.g., 'CashFlow Bank', 'Strava', 'YouTube Studio')",
@@ -75,6 +76,13 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Goal too long' }, { status: 400 })
     }
 
+    // Pass today's real date so AI calculates future dates correctly
+    const todayStr = new Date().toLocaleDateString('en-US', {
+      month: 'long',
+      day: 'numeric',
+      year: 'numeric',
+    })
+
     // Generate with OpenAI
     const completion = await openai.chat.completions.create({
       model: 'gpt-4o-mini',
@@ -86,7 +94,7 @@ export async function POST(req: NextRequest) {
         },
         {
           role: 'user',
-          content: buildPrompt(body),
+          content: buildPrompt(body, todayStr),
         },
       ],
       temperature: 0.9,

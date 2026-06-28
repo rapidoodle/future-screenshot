@@ -16,6 +16,7 @@ export default function ResultPage() {
   const [regenerating, setRegenerating] = useState(false)
   const [shareSuccess, setShareSuccess] = useState(false)
   const [error, setError] = useState('')
+  const isIOS = typeof navigator !== 'undefined' && /iPhone|iPad|iPod/i.test(navigator.userAgent)
 
   useEffect(() => {
     const storedContent = sessionStorage.getItem('futureshot_result')
@@ -39,17 +40,62 @@ export default function ResultPage() {
     setDownloading(true)
 
     try {
-      const { toPng } = await import('html-to-image')
-      const dataUrl = await toPng(screenshotRef.current, {
-        quality: 1,
-        pixelRatio: 3,
-        backgroundColor: '#ffffff',
-      })
+      const { toPng, toBlob } = await import('html-to-image')
+      const filename = `futureshot-${content.template}-${Date.now()}.png`
+      const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent)
+      const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent)
 
-      const link = document.createElement('a')
-      link.download = `futureshot-${content.template}-${Date.now()}.png`
-      link.href = dataUrl
-      link.click()
+      if (isIOS) {
+        // iOS Safari: open image in new tab — user can long-press to save
+        const dataUrl = await toPng(screenshotRef.current, {
+          quality: 1,
+          pixelRatio: 2,
+          backgroundColor: '#ffffff',
+        })
+        const newTab = window.open()
+        if (newTab) {
+          newTab.document.write(`
+            <html><body style="margin:0;background:#000;display:flex;align-items:center;justify-content:center;min-height:100vh">
+            <img src="${dataUrl}" style="max-width:100%;height:auto" />
+            <p style="position:fixed;bottom:20px;left:0;right:0;text-align:center;color:white;font-family:sans-serif;font-size:14px">
+              Long press the image → Save to Photos
+            </p>
+            </body></html>
+          `)
+        }
+      } else if (isMobile && navigator.share) {
+        // Android: use Web Share API to share the image file
+        const blob = await toBlob(screenshotRef.current, {
+          quality: 1,
+          pixelRatio: 2,
+          backgroundColor: '#ffffff',
+        })
+        if (blob) {
+          const file = new File([blob], filename, { type: 'image/png' })
+          if (navigator.canShare?.({ files: [file] })) {
+            await navigator.share({ files: [file], title: 'My Future Screenshot' })
+          } else {
+            // Fallback: blob URL download
+            const url = URL.createObjectURL(blob)
+            const link = document.createElement('a')
+            link.href = url
+            link.download = filename
+            link.click()
+            URL.revokeObjectURL(url)
+          }
+        }
+      } else {
+        // Desktop: standard download
+        const dataUrl = await toPng(screenshotRef.current, {
+          quality: 1,
+          pixelRatio: 3,
+          backgroundColor: '#ffffff',
+        })
+        const link = document.createElement('a')
+        link.download = filename
+        link.href = dataUrl
+        link.click()
+      }
     } catch (err) {
       console.error('Download failed:', err)
       setError('Download failed. Please try again.')
@@ -63,15 +109,27 @@ export default function ResultPage() {
 
     const shareText = content.shareText || `${content.caption} 🚀 Generate your own future screenshot at FutureShot!`
 
-    if (navigator.share) {
+    if (navigator.share && screenshotRef.current) {
       try {
-        await navigator.share({
-          title: 'My Future Screenshot',
-          text: shareText,
-          url: window.location.origin,
+        // Try to share with image on mobile
+        const { toBlob } = await import('html-to-image')
+        const blob = await toBlob(screenshotRef.current, {
+          quality: 1,
+          pixelRatio: 2,
+          backgroundColor: '#ffffff',
         })
+        const file = blob ? new File([blob], 'futureshot.png', { type: 'image/png' }) : null
+
+        if (file && navigator.canShare?.({ files: [file] })) {
+          await navigator.share({ files: [file], text: shareText, title: 'My Future Screenshot' })
+        } else {
+          await navigator.share({ title: 'My Future Screenshot', text: shareText, url: window.location.origin })
+        }
       } catch {
-        // User cancelled
+        // User cancelled or share failed — fallback to clipboard
+        await navigator.clipboard.writeText(shareText)
+        setShareSuccess(true)
+        setTimeout(() => setShareSuccess(false), 3000)
       }
     } else {
       await navigator.clipboard.writeText(shareText)
@@ -192,7 +250,7 @@ export default function ResultPage() {
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
                   </svg>
-                  Download PNG
+                  {isIOS ? 'Save Image' : 'Download PNG'}
                 </>
               )}
             </button>
